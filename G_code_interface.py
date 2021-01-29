@@ -1,35 +1,87 @@
 
 import serial
-import time
+import serial.tools.list_ports
 
 def main():
 
-    uno = serial.Serial('COM3', 115200)
+    ports = list(serial.tools.list_ports.comports())
+    
+    flag = 0
+
+    for p in ports:
+        if 'Arduino' in p.description:
+            uno = serial.Serial(p.name, 115200)
+            flag += 1
+
+    if(flag == 0 ):
+        print("No Arduino found")
+        return 0
 
     rail = machine()
-
+    
     uno.flushInput()
+
+    uno.readline()
+    uno.readline()
+
+    print("1. Change speed\n2. To get current position\nType Gcode commands, numbers above or exit to exit:")
+
+    getinput(uno, rail)
+   
+def getinput(uno, rail):
+
     while True:
+        print(":", end = " ")
+        uinput = input()
 
-        uinput = getinput()
-
-        if(uinput.lower() == "exit"):
+        if (uinput.lower() == "exit"):
             break
+        elif (uinput == "1"):
+            changestep(uno, rail)
+        elif uinput == "2":
+            getcurrentpos(uno)
+        else:
+            uno.write(uinput.encode())
+            uno.write('\n'.encode())
 
-        uno.write(str(uinput).encode())
-        uno.write('\n'.encode())
+def getcurrentpos(uno):
+    uno.write("?".encode())
+    uno.write('\n'.encode())
 
-        #grbl_out = uno.readline() # Wait for grbl response with carriage return
-        #time.sleep(.1)
-        #print(grbl_out.decode())
+    notok = True
 
-   
-def getinput():
-   
+    while notok == True:
+        temp = uno.readline()
+        if "ok" not in temp.decode():
+            notok = False
 
+
+    print(temp.decode())
+
+def changestep(uno,rail):
+    print("the current step size is " + str(rail.x_step))
+    print("Type the step size you want: ", end = " ")
     uinput = input()
 
-    return uinput
+    rail.set_step(int(uinput))
+    
+    w = "$100 = " + str(uinput)
+
+    uno.write(w.encode())
+    uno.write('\n'.encode())
+
+    w = "$101 = " + str(uinput)
+
+    uno.write(w.encode())
+    uno.write('\n'.encode())
+
+    w = "$102 = " + str(uinput)
+
+    uno.write(w.encode())
+    uno.write('\n'.encode())
+
+    print("speed chagned to " + str(rail.x_step))
+
 
 class machine():
     def __init__(self):
@@ -37,16 +89,17 @@ class machine():
         self.y_max = 300
         self.z_max = 300
 
-        self.x_speed = 600
-        self.y_speed = 600
-        self.z_speed = 600
+        self.x_step = 600
+        self.y_step = 600
+        self.z_step = 600
 
-    def set_speed(self, speed):
-        self.x_speed = speed
-        self.y_speed = speed
-        self.z_speed = speed
+    def set_step(self, step):
+        self.x_step = step
+        self.y_step = step
+        self.z_step = step
 
 
 
 if __name__ == "__main__":
     main()
+
